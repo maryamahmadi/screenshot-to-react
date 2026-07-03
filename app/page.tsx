@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { signout } from "./login/actions";
+import { GeneratorClient } from "@/components/GeneratorClient";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -21,14 +22,16 @@ export default async function Home() {
         </div>
       </header>
 
-      <main className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
-        <h1 className="text-4xl font-semibold tracking-tight">
-          Screenshot to React
-        </h1>
-        <p className="max-w-md text-lg text-zinc-600 dark:text-zinc-400">
-          Drop in a UI screenshot and get a live-rendered React + Tailwind
-          component. (Generator coming next.)
-        </p>
+      <main className="flex flex-1 flex-col gap-8 p-8">
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-2 text-center">
+          <h1 className="text-3xl font-semibold tracking-tight">
+            Screenshot to React
+          </h1>
+          <p className="text-zinc-600 dark:text-zinc-400">
+            Drop in a UI screenshot and get a React + Tailwind component.
+          </p>
+        </div>
+        <GeneratorClient />
       </main>
     </div>
   );
