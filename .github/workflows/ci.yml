@@ -10,12 +10,14 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    # Publishable Supabase values are safe to expose (they ship in the client
-    # bundle anyway). The secret key is NOT set here; admin/share-page tests
-    # that need it will read it from GitHub Secrets when added later.
+    # Supabase config is injected from repository variables. These publishable
+    # values ship in the client bundle anyway, so they live as plain variables
+    # rather than secrets; this just keeps project identifiers out of source.
+    # The actual secret key is NOT set here; admin/share-page tests that need it
+    # will read it from GitHub Secrets when added later.
     env:
-      NEXT_PUBLIC_SUPABASE_URL: https://liiugjtnvjgejmgjudop.supabase.co
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_lBasuOMm0JE3uUbOa1-PtA_Lhxz0Bt_
+      NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
     steps:
       - uses: actions/checkout@v4
 
