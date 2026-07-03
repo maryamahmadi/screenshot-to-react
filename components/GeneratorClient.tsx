@@ -132,9 +132,20 @@ export function GeneratorClient() {
             </p>
           ) : null}
           {error ? (
-            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-              {error}
-            </p>
+            <div className="flex items-center gap-3">
+              <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+                {error}
+              </p>
+              {image ? (
+                <button
+                  type="button"
+                  onClick={generate}
+                  className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                >
+                  Retry
+                </button>
+              ) : null}
+            </div>
           ) : null}
         </div>
 
