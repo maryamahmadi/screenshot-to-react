@@ -4,24 +4,38 @@ import { useRef, useState } from "react";
 import { Dropzone } from "./Dropzone";
 import { OutputTabs, PanelMessage } from "./OutputTabs";
 import { ShareButton } from "./ShareButton";
+import { FrameworkToggle } from "./FrameworkToggle";
+import { RefineChat } from "./RefineChat";
+import { ExampleScreenshots } from "./ExampleScreenshots";
+import { sanitizeCode } from "@/lib/sanitize";
 import type { ProcessedImage } from "@/lib/image";
+import type { Framework } from "@/lib/ai/types";
 
 type Status = "idle" | "streaming" | "done" | "error";
 
+interface RunParams {
+  instruction?: string;
+  previousCode?: string;
+}
+
 export function GeneratorClient() {
   const [image, setImage] = useState<ProcessedImage | null>(null);
+  const [framework, setFramework] = useState<Framework>("react-tailwind");
   const [code, setCode] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<string | null>(null);
   const [generationId, setGenerationId] = useState<string | null>(null);
+  const [refinements, setRefinements] = useState<string[]>([]);
   const abortRef = useRef<AbortController | null>(null);
 
   const isStreaming = status === "streaming";
   const hasOutput = status !== "idle" && (code.length > 0 || status === "error");
+  const canRefine = status === "done" && code.trim().length > 0;
 
-  async function generate() {
-    if (!image || isStreaming) return;
+  async function run({ instruction, previousCode }: RunParams) {
+    if (isStreaming) return;
+    if (!image && !previousCode) return;
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -36,8 +50,14 @@ export function GeneratorClient() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          image: { base64: image.base64, mediaType: image.mediaType },
-          framework: "react-tailwind",
+          // A refinement iterates on previous code; the initial run sends the image.
+          image:
+            !previousCode && image
+              ? { base64: image.base64, mediaType: image.mediaType }
+              : undefined,
+          instruction,
+          previousCode,
+          framework,
         }),
         signal: controller.signal,
       });
@@ -61,6 +81,7 @@ export function GeneratorClient() {
         setCode((prev) => prev + decoder.decode(value, { stream: true }));
       }
       setStatus("done");
+      if (instruction) setRefinements((prev) => [...prev, instruction]);
     } catch (err) {
       if (controller.signal.aborted) {
         setStatus(code ? "done" : "idle");
@@ -71,6 +92,15 @@ export function GeneratorClient() {
     } finally {
       abortRef.current = null;
     }
+  }
+
+  function generate() {
+    setRefinements([]);
+    void run({});
+  }
+
+  function refine(instruction: string) {
+    void run({ instruction, previousCode: sanitizeCode(code) });
   }
 
   function cancel() {
@@ -84,6 +114,7 @@ export function GeneratorClient() {
     setError(null);
     setMode(null);
     setGenerationId(null);
+    setRefinements([]);
   }
 
   return (
@@ -97,6 +128,20 @@ export function GeneratorClient() {
             onClear={reset}
             disabled={isStreaming}
           />
+
+          {!image ? (
+            <ExampleScreenshots onPick={setImage} disabled={isStreaming} />
+          ) : null}
+
+          <div className="flex flex-col gap-2">
+            <span className="text-xs text-zinc-500">Output style</span>
+            <FrameworkToggle
+              value={framework}
+              onChange={setFramework}
+              disabled={isStreaming}
+            />
+          </div>
+
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
@@ -124,6 +169,7 @@ export function GeneratorClient() {
               </span>
             ) : null}
           </div>
+
           {mode === "mock" ? (
             <p className="text-xs text-zinc-500">
               Mock mode returns one of a few sample components and ignores the
@@ -131,6 +177,7 @@ export function GeneratorClient() {
               screenshot-to-code generation.
             </p>
           ) : null}
+
           {error ? (
             <div className="flex items-center gap-3">
               <p role="alert" className="text-sm text-red-600 dark:text-red-400">
@@ -145,6 +192,17 @@ export function GeneratorClient() {
                   Retry
                 </button>
               ) : null}
+            </div>
+          ) : null}
+
+          {canRefine ? (
+            <div className="flex flex-col gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+              <span className="text-xs text-zinc-500">Refine</span>
+              <RefineChat
+                history={refinements}
+                onSubmit={refine}
+                disabled={isStreaming}
+              />
             </div>
           ) : null}
         </div>

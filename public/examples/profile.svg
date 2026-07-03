@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <rect width="800" height="600" fill="#e2e8f0"/>
+  <rect x="270" y="130" width="260" height="340" rx="16" fill="#ffffff" stroke="#e2e8f0"/>
+  <circle cx="400" cy="210" r="40" fill="#4f46e5"/>
+  <text x="378" y="220" font-family="Arial, sans-serif" font-size="26" font-weight="700" fill="#ffffff">AM</text>
+  <text x="345" y="282" font-family="Arial, sans-serif" font-size="20" font-weight="600" fill="#0f172a">Ava Martin</text>
+  <text x="342" y="306" font-family="Arial, sans-serif" font-size="13" fill="#64748b">Product Designer</text>
+  <text x="312" y="344" font-family="Arial, sans-serif" font-size="13" fill="#475569">Crafting delightful interfaces</text>
+  <text x="330" y="364" font-family="Arial, sans-serif" font-size="13" fill="#475569">for growing teams.</text>
+  <rect x="300" y="400" width="90" height="40" rx="8" fill="#4f46e5"/>
+  <text x="330" y="425" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#ffffff">Follow</text>
+  <rect x="410" y="400" width="90" height="40" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="432" y="425" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#334155">Message</text>
+</svg>
