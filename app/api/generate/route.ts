@@ -2,8 +2,12 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getProvider } from "@/lib/ai/provider";
 import { generateRequestSchema } from "@/lib/schema";
+import { generateRateLimiter } from "@/lib/ratelimit";
 
 export const runtime = "nodejs";
+
+/** Hard safety cap on generated output, independent of the model token limit. */
+const MAX_OUTPUT_CHARS = 24_000;
 
 function makeTitle(instruction?: string): string {
   const t = instruction?.trim();
@@ -21,7 +25,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // 2. Validate the request body.
+  // 2. Per-user rate limit.
+  const rl = generateRateLimiter.check(user.id);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait a moment and try again." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) },
+      },
+    );
+  }
+
+  // 3. Validate the request body.
   let body: unknown;
   try {
     body = await request.json();
@@ -39,7 +55,7 @@ export async function POST(request: NextRequest) {
 
   const generationId = crypto.randomUUID();
 
-  // 3. Persist the screenshot to storage (path is namespaced by user id, which
+  // 4. Persist the screenshot to storage (path is namespaced by user id, which
   //    RLS enforces). Optional so refinements without a new image still work.
   let imagePath: string | null = null;
   if (image) {
@@ -57,10 +73,17 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // 4. Stream the generated code, accumulating it to persist on completion.
+  // 5. Stream the generated code, accumulating it to persist on completion.
+  //    A local AbortController lets us stop the model when the output cap is
+  //    hit, while still honoring client-initiated cancellation.
   const provider = getProvider();
   const encoder = new TextEncoder();
+  const ac = new AbortController();
+  const onClientAbort = () => ac.abort();
+  request.signal.addEventListener("abort", onClientAbort);
+
   let fullCode = "";
+  let truncated = false;
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -70,17 +93,28 @@ export async function POST(request: NextRequest) {
           instruction,
           previousCode,
           framework,
-          signal: request.signal,
+          signal: ac.signal,
         })) {
           fullCode += chunk;
           controller.enqueue(encoder.encode(chunk));
+          if (fullCode.length >= MAX_OUTPUT_CHARS) {
+            truncated = true;
+            fullCode = fullCode.slice(0, MAX_OUTPUT_CHARS);
+            ac.abort();
+            break;
+          }
         }
       } catch (err) {
-        controller.error(err);
-        return;
+        // A cap-triggered abort is expected; surface anything else.
+        if (!truncated) {
+          request.signal.removeEventListener("abort", onClientAbort);
+          controller.error(err);
+          return;
+        }
       }
 
-      // Persist only a complete, non-aborted generation.
+      // Persist a completed generation. A client cancel (not our cap-abort)
+      // leaves nothing saved.
       if (!request.signal.aborted && fullCode.trim()) {
         await supabase.from("generations").insert({
           id: generationId,
@@ -92,7 +126,12 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      request.signal.removeEventListener("abort", onClientAbort);
       controller.close();
+    },
+    cancel() {
+      request.signal.removeEventListener("abort", onClientAbort);
+      ac.abort();
     },
   });
 

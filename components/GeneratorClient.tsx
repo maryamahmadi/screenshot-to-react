@@ -1,23 +1,12 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import dynamic from "next/dynamic";
+import { useRef, useState } from "react";
 import { Dropzone } from "./Dropzone";
-import { CodePanel } from "./CodePanel";
-import { sanitizeCode } from "@/lib/sanitize";
+import { OutputTabs, PanelMessage } from "./OutputTabs";
+import { ShareButton } from "./ShareButton";
 import type { ProcessedImage } from "@/lib/image";
 
-// Sandpack is client-only and heavy; load it lazily and skip SSR.
-const PreviewPanel = dynamic(
-  () => import("./PreviewPanel").then((m) => m.PreviewPanel),
-  {
-    ssr: false,
-    loading: () => <PanelMessage>Loading preview…</PanelMessage>,
-  },
-);
-
 type Status = "idle" | "streaming" | "done" | "error";
-type Tab = "preview" | "code";
 
 export function GeneratorClient() {
   const [image, setImage] = useState<ProcessedImage | null>(null);
@@ -25,11 +14,10 @@ export function GeneratorClient() {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>("code");
+  const [generationId, setGenerationId] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const isStreaming = status === "streaming";
-  const cleanCode = useMemo(() => sanitizeCode(code), [code]);
   const hasOutput = status !== "idle" && (code.length > 0 || status === "error");
 
   async function generate() {
@@ -41,7 +29,7 @@ export function GeneratorClient() {
     setError(null);
     setCode("");
     setMode(null);
-    setTab("code");
+    setGenerationId(null);
 
     try {
       const res = await fetch("/api/generate", {
@@ -63,6 +51,7 @@ export function GeneratorClient() {
       }
 
       setMode(res.headers.get("X-Provider-Mode"));
+      setGenerationId(res.headers.get("X-Generation-Id"));
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -72,7 +61,6 @@ export function GeneratorClient() {
         setCode((prev) => prev + decoder.decode(value, { stream: true }));
       }
       setStatus("done");
-      setTab("preview");
     } catch (err) {
       if (controller.signal.aborted) {
         setStatus(code ? "done" : "idle");
@@ -95,6 +83,7 @@ export function GeneratorClient() {
     setStatus("idle");
     setError(null);
     setMode(null);
+    setGenerationId(null);
   }
 
   return (
@@ -108,7 +97,7 @@ export function GeneratorClient() {
             onClear={reset}
             disabled={isStreaming}
           />
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
               onClick={generate}
@@ -126,90 +115,51 @@ export function GeneratorClient() {
                 Cancel
               </button>
             ) : null}
+            {status === "done" && generationId ? (
+              <ShareButton path={`/s/${generationId}`} />
+            ) : null}
             {mode ? (
               <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                 {mode} mode
               </span>
             ) : null}
           </div>
-          {error ? (
-            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-              {error}
+          {mode === "mock" ? (
+            <p className="text-xs text-zinc-500">
+              Mock mode returns one of a few sample components and ignores the
+              screenshot contents. Add an Anthropic API key for real
+              screenshot-to-code generation.
             </p>
+          ) : null}
+          {error ? (
+            <div className="flex items-center gap-3">
+              <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+                {error}
+              </p>
+              {image ? (
+                <button
+                  type="button"
+                  onClick={generate}
+                  className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                >
+                  Retry
+                </button>
+              ) : null}
+            </div>
           ) : null}
         </div>
 
         {/* Right: output */}
-        <div className="flex min-h-[32rem] flex-col gap-3">
-          <div
-            role="tablist"
-            aria-label="Output view"
-            className="flex gap-1 self-start rounded-lg bg-zinc-100 p-1 dark:bg-zinc-800"
-          >
-            <TabButton
-              active={tab === "preview"}
-              onClick={() => setTab("preview")}
-            >
-              Preview
-            </TabButton>
-            <TabButton active={tab === "code"} onClick={() => setTab("code")}>
-              Code
-            </TabButton>
+        {hasOutput ? (
+          <OutputTabs code={code} streaming={isStreaming} />
+        ) : (
+          <div className="flex min-h-[32rem] flex-col">
+            <PanelMessage>
+              Drop a screenshot and generate to see the result here.
+            </PanelMessage>
           </div>
-
-          <div className="min-h-0 flex-1">
-            {!hasOutput ? (
-              <PanelMessage>
-                Drop a screenshot and generate to see the result here.
-              </PanelMessage>
-            ) : tab === "code" ? (
-              <CodePanel code={cleanCode} streaming={isStreaming} />
-            ) : status === "done" && cleanCode ? (
-              <PreviewPanel code={cleanCode} />
-            ) : (
-              <PanelMessage>
-                {isStreaming
-                  ? "Preview appears when generation finishes…"
-                  : "Nothing to preview."}
-              </PanelMessage>
-            )}
-          </div>
-        </div>
+        )}
       </div>
-    </div>
-  );
-}
-
-function TabButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      onClick={onClick}
-      className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-        active
-          ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-950 dark:text-white"
-          : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-function PanelMessage({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex h-full min-h-[28rem] items-center justify-center rounded-xl border border-dashed border-zinc-300 p-6 text-center text-sm text-zinc-500 dark:border-zinc-700">
-      {children}
     </div>
   );
 }
