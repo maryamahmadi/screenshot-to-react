@@ -105,6 +105,20 @@ export async function processImageFile(
   }
 }
 
+/** Fetches a bundled example asset and runs it through the same pipeline. */
+export async function loadExampleImage(
+  url: string,
+  maxDimension: number = DEFAULT_MAX_DIMENSION,
+): Promise<ProcessedImage> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Could not load example image.");
+  const blob = await res.blob();
+  const file = new File([blob], "example", {
+    type: blob.type || "image/png",
+  });
+  return processImageFile(file, maxDimension);
+}
+
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
