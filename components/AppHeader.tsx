@@ -1,7 +1,13 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { signout } from "@/app/login/actions";
 
 export function AppHeader({ email }: { email?: string | null }) {
+  const pathname = usePathname();
+  const historyActive = pathname?.startsWith("/history") ?? false;
+
   return (
     <header className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
       <div className="flex items-center gap-5">
@@ -11,7 +17,12 @@ export function AppHeader({ email }: { email?: string | null }) {
         <nav className="text-sm">
           <Link
             href="/history"
-            className="text-zinc-500 transition-colors hover:text-zinc-900 dark:hover:text-zinc-100"
+            aria-current={historyActive ? "page" : undefined}
+            className={`transition-colors ${
+              historyActive
+                ? "font-medium text-zinc-900 dark:text-zinc-100"
+                : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+            }`}
           >
             History
           </Link>
