@@ -33,4 +33,18 @@ describe("OutputTabs", () => {
     render(<OutputTabs code="" />);
     expect(screen.getByText(/nothing to preview/i)).toBeInTheDocument();
   });
+
+  it("toggles the expand/collapse control", () => {
+    render(<OutputTabs code="const a = 1;" streaming />);
+    const expand = screen.getByRole("button", { name: "Expand output" });
+    fireEvent.click(expand);
+    expect(
+      screen.getByRole("button", { name: "Collapse output" }),
+    ).toBeInTheDocument();
+    // Escape collapses it again.
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(
+      screen.getByRole("button", { name: "Expand output" }),
+    ).toBeInTheDocument();
+  });
 });

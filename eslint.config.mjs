@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local-only, uncommitted dev shim for the corporate proxy.
+    "undici-proxy.local.cjs",
   ]),
 ]);
 

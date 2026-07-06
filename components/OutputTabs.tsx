@@ -31,6 +31,7 @@ export function OutputTabs({
   defaultTab = "preview",
 }: OutputTabsProps) {
   const [tab, setTab] = useState<Tab>(streaming ? "code" : defaultTab);
+  const [expanded, setExpanded] = useState(false);
   const cleanCode = useMemo(() => sanitizeCode(code), [code]);
   const wasStreaming = useRef(streaming);
 
@@ -40,21 +41,92 @@ export function OutputTabs({
     wasStreaming.current = streaming;
   }, [streaming, cleanCode]);
 
+  // While expanded, close on Escape and lock background scroll.
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setExpanded(false);
+    };
+    window.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [expanded]);
+
   const canPreview = !streaming && cleanCode.length > 0;
 
   return (
-    <div className="flex min-h-[32rem] flex-col gap-3">
-      <div
-        role="tablist"
-        aria-label="Output view"
-        className="flex gap-1 self-start rounded-lg bg-zinc-100 p-1 dark:bg-zinc-800"
-      >
-        <TabButton active={tab === "preview"} onClick={() => setTab("preview")}>
-          Preview
-        </TabButton>
-        <TabButton active={tab === "code"} onClick={() => setTab("code")}>
-          Code
-        </TabButton>
+    <div
+      className={
+        expanded
+          ? "fixed inset-0 z-50 flex flex-col gap-3 bg-white p-4 dark:bg-zinc-950"
+          : "flex min-h-[32rem] flex-col gap-3"
+      }
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div
+          role="tablist"
+          aria-label="Output view"
+          className="flex gap-1 rounded-lg bg-zinc-100 p-1 dark:bg-zinc-800"
+        >
+          <TabButton
+            active={tab === "preview"}
+            onClick={() => setTab("preview")}
+          >
+            Preview
+          </TabButton>
+          <TabButton active={tab === "code"} onClick={() => setTab("code")}>
+            Code
+          </TabButton>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-label={expanded ? "Collapse output" : "Expand output"}
+          className="flex items-center gap-1.5 rounded-md border border-zinc-300 px-2.5 py-1.5 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        >
+          {expanded ? (
+            <>
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 9L4 4m0 0v4m0-4h4m7 5l5-5m0 0v4m0-4h-4M9 15l-5 5m0 0v-4m0 4h4m7-5l5 5m0 0v-4m0 4h-4"
+                />
+              </svg>
+              Collapse
+            </>
+          ) : (
+            <>
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+                />
+              </svg>
+              Expand
+            </>
+          )}
+        </button>
       </div>
 
       <div className="min-h-0 flex-1">
