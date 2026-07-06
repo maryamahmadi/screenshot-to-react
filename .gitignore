@@ -40,6 +40,9 @@ yarn-error.log*
 /playwright/.cache/
 /e2e/.auth/
 
+# local-only dev shim to route Node through a corporate proxy
+undici-proxy.local.cjs
+
 # vercel
 .vercel
 

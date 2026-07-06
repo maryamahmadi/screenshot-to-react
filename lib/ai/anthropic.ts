@@ -4,7 +4,9 @@ import type { AIProvider, GenerateParams } from "./types";
 import { systemPrompt, userInstruction } from "../prompt";
 
 const MODEL = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-5";
-const MAX_OUTPUT_TOKENS = 4000;
+// Generous cap so realistic components aren't truncated mid-JSX (which produces
+// uncompilable code). The route still enforces a hard character cap on top.
+const MAX_OUTPUT_TOKENS = 8000;
 
 type UserContentPart =
   | { type: "text"; text: string }

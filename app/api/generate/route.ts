@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getProvider } from "@/lib/ai/provider";
 import { generateRequestSchema } from "@/lib/schema";
 import { generateRateLimiter } from "@/lib/ratelimit";
+import { sanitizeCode } from "@/lib/sanitize";
 
 export const runtime = "nodejs";
 
@@ -114,14 +115,16 @@ export async function POST(request: NextRequest) {
       }
 
       // Persist a completed generation. A client cancel (not our cap-abort)
-      // leaves nothing saved.
-      if (!request.signal.aborted && fullCode.trim()) {
+      // leaves nothing saved. Store sanitized code (fences/prose stripped) so
+      // history and share pages render a clean, compilable component.
+      const cleanCode = sanitizeCode(fullCode);
+      if (!request.signal.aborted && cleanCode) {
         await supabase.from("generations").insert({
           id: generationId,
           user_id: user.id,
           title: makeTitle(instruction),
           image_path: imagePath,
-          code: fullCode,
+          code: cleanCode,
           framework,
         });
       }
