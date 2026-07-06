@@ -48,7 +48,7 @@ export function ExampleScreenshots({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={e.src}
-              alt={e.label}
+              alt=""
               className="h-16 w-full bg-white object-cover"
             />
             <span className="px-2 py-1 text-xs text-zinc-600 dark:text-zinc-300">
