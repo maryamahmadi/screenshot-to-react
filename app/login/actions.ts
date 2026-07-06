@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { isSignupAllowed } from "@/lib/allowlist";
 
 function safeRedirectTo(raw: FormDataEntryValue | null): string {
   const value = typeof raw === "string" ? raw : "";
@@ -32,9 +33,16 @@ export async function signup(formData: FormData) {
   const supabase = await createClient();
   const redirectTo = safeRedirectTo(formData.get("redirectTo"));
   const origin = (await headers()).get("origin") ?? "";
+  const email = String(formData.get("email") ?? "");
+
+  if (!isSignupAllowed(email)) {
+    redirect(
+      `/login?error=${encodeURIComponent("Sign-ups are restricted. Contact the site owner for access.")}`,
+    );
+  }
 
   const { data, error } = await supabase.auth.signUp({
-    email: String(formData.get("email") ?? ""),
+    email,
     password: String(formData.get("password") ?? ""),
     options: {
       emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
